@@ -1,4 +1,17 @@
 <?php
+
+/***************************************************************************
+ *
+ *  AffiliateLinks MyBB Plugin (/inc/plugins/affiliatelinks.php)
+ *  Author: Richard Pinnock-Edmonds
+ *  © 2025 Richard Pinnock-Edmonds
+ *  
+ *  License: GPL-3.0
+ *
+ *  This plugin allows MyBB administrators to append affiliate tags and codes to URLs.
+ *
+ ***************************************************************************/
+
 if (!defined('IN_MYBB')) {
     die('Direct access not allowed.');
 }
@@ -13,43 +26,38 @@ function affiliatelinks_info()
         'author' => 'Richard Pinnock-Edmonds',
         'authorsite' => 'https://www.richedmonds.co.uk/',
         'version' => '0.1',
-        'compatibility' => '18*'
+        'compatibility' => '18*',
+        'codename' => 'affiliatelinks',  // Codename should match the plugin file name
+        'settings' => 'affiliatelinks',  // This links to the settings group
+        'guid' => '', // Optional for now, can be added later for unique plugin identification
     ];
 }
 
-// These are the primary hooks
-$plugins->add_hook('postbit', 'check_affiliate_links');
-$plugins->add_hook('postbit_prev', 'check_affiliate_links');
-$plugins->add_hook('private_message', 'check_affiliate_links');
-$plugins->add_hook('member_profile_end', 'check_affiliate_links_profile');
-$plugins->add_hook('parse_message_end', 'check_affiliate_links_parse');
-$plugins->add_hook('admin_config_settings_change_commit', 'affiliatelinks_cache');
-
 // Check for affiliate links in posts and messages
-function check_affiliate_links(&$post)
+function affiliatelinks(&$post)
 {
-    $post['message'] = affiliate_links_add_tags($post['message']);
+    $post['message'] = affiliatelinks_add_tags($post['message']);
     if (isset($post['signature'])) {
-        $post['signature'] = affiliate_links_add_tags($post['signature']);
+        $post['signature'] = affiliatelinks_add_tags($post['signature']);
     }
 }
 
 // Check for affiliate links in profiles
-function check_affiliate_links_profile()
+function affiliatelinks_profile()
 {
     global $memprofile;
     if (isset($memprofile['bio'])) {
-        $memprofile['bio'] = affiliate_links_add_tags($memprofile['bio']);
+        $memprofile['bio'] = affiliatelinks_add_tags($memprofile['bio']);
     }
 }
 
-function check_affiliate_links_parse(&$message)
+function affiliatelinks_parse(&$message)
 {
-    $message = affiliate_links_add_tags($message);
+    $message = affiliatelinks_add_tags($message);
 }
 
 // Where the magic takes place
-function affiliate_links_add_tags($message)
+function affiliatelinks_add_tags($message)
 {
     global $mybb, $cache;
 
@@ -108,7 +116,7 @@ function affiliate_links_add_tags($message)
                 }
             }
 
-            return '<a href="' . htmlspecialchars($url) . '">' . $text . '</a>';
+            return '<a href="' . htmlspecialchars($url) . '">' . htmlspecialchars($text) . '</a>';
         },
         $message
     );
@@ -116,24 +124,25 @@ function affiliate_links_add_tags($message)
     return $message;
 }
 
-// Installing the plugin
-function affiliate_links_install()
+function affiliatelinks_install()
 {
     global $db;
 
-    $group = [
-        'name' => 'affiliate_links',
+    // Install plugin settings
+    $setting_group = [
+        'name' => 'affiliatelinks',
         'title' => 'Affiliate Link Settings',
         'description' => 'Settings for the Affiliate Link Tagger plugin',
-        'disporder' => 100,
+        'disporder' => 50,
         'isdefault' => 0
     ];
-    $gid = $db->insert_query('settinggroups', $group);
 
-    // Add some settings to the Admin CP to make it easier to configure
-    $settings = [
+    $gid = $db->insert_query('settinggroups', $setting_group);
+
+    // Adding settings
+    $setting_array = [
         [
-            'name' => 'affiliate_links_domains',
+            'name' => 'affiliatelinks_domains',
             'title' => 'Affiliate Domains & Tags',
             'description' => 'Format: one per line (e.g., amazon.com=tag=mytag-20)',
             'optionscode' => 'textarea',
@@ -152,21 +161,27 @@ function affiliate_links_install()
         ]
     ];
 
-    foreach ($settings as $setting) {
+    foreach ($setting_array as $setting) {
         $db->insert_query('settings', $setting);
     }
 
     rebuild_settings();
-    affiliatelinks_cache();
 }
 
 // Uninstalling the plugin
-function affiliate_links_uninstall()
+function affiliatelinks_uninstall()
 {
-    global $db;
-    $db->delete_query('settings', "name IN ('affiliate_links_domains','affiliatelinks_overwrite')");
-    $db->delete_query('settinggroups', "name='affiliate_links'");
-    $cache = new datacache;
+    global $db, $cache;
+
+    // Safely delete settings if they exist
+    if ($db->fetch_field($db->simple_select('settings', 'sid', "name='affiliatelinks_domains'"), 'sid')) {
+        $db->delete_query('settings', "name IN ('affiliatelinks_domains', 'affiliatelinks_overwrite')");
+    }
+    if ($db->fetch_field($db->simple_select('settinggroups', 'gid', "name='affiliatelinks'"), 'gid')) {
+        $db->delete_query('settinggroups', "name='affiliatelinks'");
+    }
+
+    // Clear cache
     $cache->delete('affiliatelinks_rules');
 
     rebuild_settings();
@@ -177,7 +192,7 @@ function affiliatelinks_cache()
 {
     global $mybb, $cache;
 
-    $settings_raw = $mybb->settings['affiliate_links_domains'];
+    $settings_raw = $mybb->settings['affiliatelinks_domains'];
     $rules = [];
 
     if (!empty($settings_raw)) {
@@ -194,6 +209,45 @@ function affiliatelinks_cache()
     $cache->update('affiliatelinks_rules', $rules);
 }
 
-// Activating and deactivting the plugin
-function affiliate_links_activate() {}
-function affiliate_links_deactivate() {}
+// Check to see if the plugin is installed
+function affiliatelinks_is_installed()
+{
+    global $db;
+
+    $group = $db->fetch_field(
+        $db->simple_select('settinggroups', 'gid', "name='affiliatelinks'"),
+        'gid'
+    );
+
+    if (!$group) return false;
+
+    $query = $db->simple_select('settings', 'sid', "name='affiliatelinks_domains'");
+    return ($db->num_rows($query) > 0);
+}
+
+// Deactivting the plugin
+function affiliatelinks_deactivate()
+{
+    global $db, $cache;
+
+    // Remove plugin-related cache
+    $cache->delete('affiliatelinks_rules');
+
+    // Optionally, remove settings from the database (if you want complete cleanup)
+    //$db->delete_query('settings', "name IN ('affiliatelinks_domains', 'affiliatelinks_overwrite')");
+    //$db->delete_query('settinggroups', "name='affiliatelinks'");
+}
+
+function affiliatelinks_activate()
+{
+    global $plugins;
+
+    // These hooks should only be added after the plugin is activated and settings are properly saved
+    $plugins->add_hook('postbit', 'affiliatelinks');
+    $plugins->add_hook('postbit_prev', 'affiliatelinks');
+    $plugins->add_hook('private_message', 'affiliatelinks');
+    $plugins->add_hook('member_profile_end', 'affiliatelinks_profile');
+    $plugins->add_hook('parse_message_end', 'affiliatelinks_parse');
+    $plugins->add_hook('acp_settings_change_commit', 'affiliatelinks_cache');
+}
+
