@@ -38,8 +38,8 @@ Configuring AffiliateLinks is straightforward, and there are only a few settings
 2. Scroll down to <strong>AffiliateLink Settings</strong>.
 3. Add all your <strong>affiliated domains and tags</strong>:
 
-    <code>amazon.com=tag=mytag-20
-    example.com=ref=affiliateid</code>
+    <code>amazon.com=tag=mytag-20</code>
+    <code>example.com=ref=affiliateid</code>
 
 4. Configure <strong>Overwrite Existing Tags</strong>:
 
