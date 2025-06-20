@@ -11,7 +11,7 @@ if (!defined("IN_MYBB")) {
     die("Direct initialization of this file is not allowed.");
 }
 
-// Plugin Info
+// Info for the plugin so MyBB can see what it does
 function affiliatelinks_info()
 {
     return [
@@ -25,7 +25,7 @@ function affiliatelinks_info()
     ];
 }
 
-// Supported domains list
+// Supported domains list, you can add some more domains here that will show in the ACP
 function affiliatelinks_supported_domains()
 {
     return [
@@ -35,7 +35,7 @@ function affiliatelinks_supported_domains()
     ];
 }
 
-// Activate Plugin
+// Let's activate the plugin in MyBB, shall we?
 function affiliatelinks_activate()
 {
     global $db;
@@ -90,7 +90,7 @@ function affiliatelinks_activate()
     rebuild_settings();
 }
 
-// Deactivate Plugin
+// Sorry to see you go, but here's how we deactivate the plugin
 function affiliatelinks_deactivate()
 {
     global $db;
@@ -108,11 +108,11 @@ function affiliatelinks_deactivate()
     rebuild_settings();
 }
 
-// Hooks
+// Some additional hooks to make the magic gappen
 $plugins->add_hook("postbit", "affiliatelinks_process");
 $plugins->add_hook("postbit_announcement", "affiliatelinks_process");
 
-// Main Processing
+// Primary processing for the plugin
 function affiliatelinks_process(&$post)
 {
     global $mybb;
@@ -124,7 +124,7 @@ function affiliatelinks_process(&$post)
     $post['message'] = affiliatelinks_modify_links($post['message']);
 }
 
-// Get cached domain list
+// Let's see what domains have been cached by MyBB for processing
 function affiliatelinks_get_cached_domains()
 {
     global $mybb;
@@ -146,7 +146,7 @@ function affiliatelinks_get_cached_domains()
     return $cached;
 }
 
-// Link Modifier
+// Now it's time to bring in the link modifier
 function affiliatelinks_modify_links($message)
 {
     global $mybb;
